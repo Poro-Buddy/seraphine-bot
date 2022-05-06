@@ -1,0 +1,18 @@
+{
+    "riotAPI": "RGAPI-d78a6ba5-41c9-4137-808b-e60aa4cd5469",
+    "prefix": "!",
+    "loadSlashsGlobal": false, "_COMMENT_": "Set it to true, when your Slash Commands are ready, false loads instant true loads slow but stable! (GLOBAL/GUILD COMMANDS, DISCORD DOCS!)",
+    "slashCommandsDirs": [
+        {
+            "Folder": "dev",
+            "CmdName": "dev",
+            "CmdDescription": "Bot Development commands, not for public use"
+        },
+        {
+            "Folder": "setup",
+            "CmdName": "setup",
+            "CmdDescription": "Setup different mechanics for your server"
+        }
+    ]
+  }
+  
