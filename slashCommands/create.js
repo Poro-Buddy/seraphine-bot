@@ -41,9 +41,29 @@ module.exports = {
 		let textChannel = options.getString("text_channel") == "yes" ? 1 : 0;
 		let logchannel;
 
+		if(channelLimit > 99) channelLimit = 99;
+		if(channelLimit < 0) channelLimit = 0;
+
+		function premiumCheck(){
+			con.query(`SELECT * FROM seraphine_hub_channels WHERE guild='${guild.id}'`, function(errCheck, resCheck){
+				if(resCheck.length >= 4){
+					const nopremium = new MessageEmbed()
+					.setTitle(`PREMIUM REQUIRED`)
+					.setDescription(`It would seem like you have already ${resCheck.length} hub channels, and this is maximum amount of hubs you can create with free Seraphine. Please consider buying premium in order to create **limitless** amount of hub channels!`)
+					.setTimestamp()
+					.setFooter({text: emb.footertext, iconURL: client.user.displayAvatarURL()});
+		
+					return interaction.reply({embeds: [nopremium], ephemeral: true});
+				} else {
+					createChannels()
+				}
+			})
+		}
+
 		if(guild.me.permissions.has("MANAGE_CHANNELS")){
 			con.query(`SELECT * FROM seraphine_guilds WHERE guild='${guild.id}'`, function(err, res){
 				if(res.length === 0){
+					premiumCheck()
 					guild.channels.create('voicelog', {
 						type: 'GUILD_TEXT',
 						parent: interaction.channel.parent
@@ -59,15 +79,22 @@ module.exports = {
 							{name: `CHANNEL`, value: `${ch.name}\n\`${ch.id}\``}
 						);
 						client.channels.cache.get(IC.database).send({embeds: [dbupdate]});
+						createChannels();
 					})
 				} else {
 					logchannel = res[0].logchannel;
+					if(!res[0].premium){
+						premiumCheck();
+					}
 				}
-				guild.channels.create('Join To Create Channel', {
-					type: 'GUILD_VOICE',
-					parent: interaction.channel.parent
-				}).then(vch => {
-					con.query(`INSERT INTO seraphine_hub_channels (guild, channel, name, userlimit, text) VALUES ('${guild.id}', '${vch.id}', "${channelName}", '${channelLimit}', '${textChannel}')`);
+			})
+		}
+		function createChannels(){
+			guild.channels.create('Join To Create Channel', {
+				type: 'GUILD_VOICE',
+				parent: interaction.channel.parent
+			}).then(vch => {
+				con.query(`INSERT INTO seraphine_hub_channels (guild, channel, name, userlimit, text) VALUES ('${guild.id}', '${vch.id}', "${channelName}", '${channelLimit}', '${textChannel}')`, function (insertErr, insertRes, fields){
 					const hubcreated = new MessageEmbed()
 					.setTitle(`NEW HUB CHANNEL CREATED`)
 					.setTimestamp()
@@ -78,19 +105,37 @@ module.exports = {
 						{name: `User limit`, value: `${channelLimit}`, inline: true},
 						{name: `Text channel`, value: `${options.getString("text_channel").toUpperCase()}`, inline:true}
 					)
+					.setFooter({text: `HUB ID: ${insertRes.insertId}`, iconURL: client.user.displayAvatarURL()})
 					try {
 						if(guild.channels.cache.find(c => c.id === logchannel)){
 							client.channels.cache.get(logchannel).send({embeds: [hubcreated]});
+						} else {
+							guild.channels.create('voicelog', {
+								type: 'GUILD_TEXT',
+								parent: interaction.channel.parent
+							}).then(newch => {
+								newch.send({embeds: [hubcreated]});
+								con.query(`UPDATE seraphine_guilds SET logchannel='${newch.id}'`)
+								const dbupdate = new MessageEmbed()
+								.setTitle(`SERAPHINE GUILD UPDATE`)
+								.setThumbnail(guild.iconURL())
+								.setTimestamp()
+								.addFields(
+									{name: `GUILD`, value: `${guild.name}\n\`${guild.id}\``},
+									{name: `CHANNEL`, value: `${ch.name}\n\`${ch.id}\``}
+								);
+								client.channels.cache.get(IC.database).send({embeds: [dbupdate]});
+							})
 						}
 					} catch(e){
 						console.log(String(e.stack).bgRed)
 					}
-					interaction.reply({embeds: [hubcreated], ephemeral: true})
-				})
+					interaction.reply({embeds: [hubcreated], ephemeral: true});
+				});
 			})
 		}
-    } catch (e) {
+  	} catch (e) {
         console.log(String(e.stack).bgRed)
     }
-  }
+}
 }

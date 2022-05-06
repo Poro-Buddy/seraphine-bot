@@ -708,9 +708,11 @@ function onCoolDown(message, command) {
   function change_status(client) {
     try {
       con.query(`SELECT id FROM seraphine_channels`, function (errr, ress){
-          client.user.setActivity(`to ${ress.length} channel(s) ღ`, {
+        con.query(`SELECT id FROM seraphine_hub_channels`, function (bigerr, bigress){
+          client.user.setActivity(`to ${ress.length + bigress.length} channel(s) ღ`, {
             type: "LISTENING",
           });
+        });
       })
     } catch (e) {
       console.log(String(e.stack).bgRed)

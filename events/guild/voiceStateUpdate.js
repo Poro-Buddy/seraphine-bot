@@ -77,7 +77,7 @@ module.exports = async (client, oldState, newState) => {
             } else {
                 con.query(`SELECT * FROM seraphine_channels WHERE guild='${newState.guild.id}' AND channel='${newState.channelId}'`, function (errr, ress){
                     if(ress.length > 0){
-                        if(ress[0].text_channel != "NULL"){
+                        if(ress[0].text_channel != null){
                             let textChannel = client.channels.cache.get(ress[0].text_channel);
                             textChannel.permissionOverwrites.create(newState.member, {
                                 VIEW_CHANNEL: true
@@ -92,41 +92,43 @@ module.exports = async (client, oldState, newState) => {
         con.query(`SELECT * FROM seraphine_channels WHERE guild='${newState.guild.id}' AND channel='${oldState.channelId}'`, function (err, res){
             if(res.length > 0){
                 let vch = client.channels.cache.get(oldState.channelId);
-                let channelCount = vch.members.filter(m => !m.user.bot).size;
-                if(channelCount == 0){
-                    if(res[0].text_channel != "NULL"){
-                        const logentry = new MessageEmbed()
-                        .setTitle(`REMOVED VOICE CHANNEL`)
-                        .setTimestamp()
-                        .addFields(
-                            {name: `USER`, value: `${newState.member}\n${emoji.id} \`${newState.member.id}\``, inline: true},
-                            {name: `CHANNEL(S) DELETED`, value: `${emoji.plus} ${vch.name}\n${emoji.plus} ${client.channels.cache.get(res[0].text_channel).name}`}
-                        );
-                        con.query(`SELECT * FROM seraphine_guilds WHERE guild='${newState.guild.id}'`, function(errlog, reslog){
-                            if(newState.guild.channels.cache.find(c => c.id === reslog[0].logchannel)){
-                                client.channels.cache.get(reslog[0].logchannel).send({embeds: [logentry]});
-                            }
-                        });
-                        client.channels.cache.get(res[0].text_channel).delete('Deleting empty private channel')
+                if(vch){
+                    let channelCount = vch.members.filter(m => !m.user.bot).size;
+                    if(channelCount == 0){
+                        if(res[0].text_channel != null){
+                            const logentry = new MessageEmbed()
+                            .setTitle(`REMOVED VOICE CHANNEL`)
+                            .setTimestamp()
+                            .addFields(
+                                {name: `USER`, value: `${newState.member}\n${emoji.id} \`${newState.member.id}\``, inline: true},
+                                {name: `CHANNEL(S) DELETED`, value: `${emoji.plus} ${vch.name}\n${emoji.plus} ${client.channels.cache.get(res[0].text_channel).name}`}
+                            );
+                            con.query(`SELECT * FROM seraphine_guilds WHERE guild='${newState.guild.id}'`, function(errlog, reslog){
+                                if(newState.guild.channels.cache.find(c => c.id === reslog[0].logchannel)){
+                                    client.channels.cache.get(reslog[0].logchannel).send({embeds: [logentry]});
+                                }
+                            });
+                            client.channels.cache.get(res[0].text_channel).delete('Deleting empty private channel')
+                        } else {
+                            const logentry = new MessageEmbed()
+                            .setTitle(`REMOVED VOICE CHANNEL`)
+                            .setTimestamp()
+                            .addFields(
+                                {name: `USER`, value: `${newState.member}\n${emoji.id} \`${newState.member.id}\``, inline: true},
+                                {name: `CHANNEL(S) DELETED`, value: `${emoji.plus} ${vch.name}`}
+                            );
+                            con.query(`SELECT * FROM seraphine_guilds WHERE guild='${newState.guild.id}'`, function(errlog, reslog){
+                                if(newState.guild.channels.cache.find(c => c.id === reslog[0].logchannel)){
+                                    client.channels.cache.get(reslog[0].logchannel).send({embeds: [logentry]});
+                                }
+                            });
+                        }
+                        vch.delete('Deleting empty private channel')
+                        con.query(`DELETE FROM seraphine_channels WHERE guild='${newState.guild.id}' AND channel='${oldState.channelId}'`)
                     } else {
-                        const logentry = new MessageEmbed()
-                        .setTitle(`REMOVED VOICE CHANNEL`)
-                        .setTimestamp()
-                        .addFields(
-                            {name: `USER`, value: `${newState.member}\n${emoji.id} \`${newState.member.id}\``, inline: true},
-                            {name: `CHANNEL(S) DELETED`, value: `${emoji.plus} ${vch.name}`}
-                        );
-                        con.query(`SELECT * FROM seraphine_guilds WHERE guild='${newState.guild.id}'`, function(errlog, reslog){
-                            if(newState.guild.channels.cache.find(c => c.id === reslog[0].logchannel)){
-                                client.channels.cache.get(reslog[0].logchannel).send({embeds: [logentry]});
-                            }
-                        });
-                    }
-                    vch.delete('Deleting empty private channel')
-                    con.query(`DELETE FROM seraphine_channels WHERE guild='${newState.guild.id}' AND channel='${oldState.channelId}'`)
-                } else {
-                    if(res[0].text_channel != "NULL"){
-                        client.channels.cache.get(res[0].text_channel).permissionOverwrites.delete(newState.member);
+                        if(res[0].text_channel != "NULL"){
+                            client.channels.cache.get(res[0].text_channel).permissionOverwrites.delete(newState.member);
+                        }
                     }
                 }
             }
