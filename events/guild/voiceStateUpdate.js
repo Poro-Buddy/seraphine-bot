@@ -11,7 +11,17 @@ module.exports = async (client, oldState, newState) => {
                 newState.guild.channels.create(channelName, {
                     type: 'GUILD_VOICE',
                     userLimit: res[0].userlimit,
-                    parent: client.channels.cache.get(res[0].channel).parent
+                    parent: client.channels.cache.get(res[0].channel).parent,
+                    permissionOverwrites: [
+                        {
+                            id: newState.guild.me.id,
+                            allow: [Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.MANAGE_CHANNELS]
+                        },
+                        {
+                            id: newState.member.id,
+                            allow: [Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.MANAGE_CHANNELS]
+                        }
+                    ]
                 }).then(vch => {
                     newState.member.voice.setChannel(vch, "Moved user to their respective new channel!")
                     if(res[0].text){
@@ -38,8 +48,8 @@ module.exports = async (client, oldState, newState) => {
                             .setFooter({text: emb.footertext})
                             .setTimestamp()
                             .setThumbnail(client.user.displayAvatarURL())
-                            .setDescription(`Owner of this channel is ${newState.member} and if server Administrators have granted channel owners permissions, they can edit voice channel userlimit, name and bitrate!\n\n${emoji.sera_peace} Once the channel empties out from all users, channels will be deleted!`)
-                            txtch.send({embeds: [infoBlock]}).then(m => m.pin());
+                            .setDescription(`Owner of this channel is ${newState.member} and they can edit voice channel userlimit, name and bitrate!\n\n${emoji.sera_peace} Once the channel empties out from all users, channels will be deleted!`)
+                            txtch.send({embeds: [infoBlock]});
 
                             const logentry = new MessageEmbed()
                             .setTitle(`NEW VOICE CHANNEL`)

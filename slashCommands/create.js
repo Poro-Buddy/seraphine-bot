@@ -1,4 +1,4 @@
-const { MessageEmbed, Message, ClientVoiceManager } = require("discord.js");
+const { MessageEmbed, Message, ClientVoiceManager, Permissions } = require("discord.js");
 const config = require("../botconfig/config.json");
 const emb = require("../botconfig/embed.json");
 const settings = require("../botconfig/settings.json");
@@ -15,7 +15,7 @@ module.exports = {
   options: [ //OPTIONAL OPTIONS, make the array empty / dont add this option if you don't need options!	
 		{"String": {name: "channel_name", description: "What should the channel be called when it is created? {USER} will be replaced with users name", required: true}},
 		{"Integer": {name: "user_limit", description: "How many users should be allowed to join created channel? If unlimited set to 0", required: true}},
-		{"StringChoices": {name: "text_channel", description: "Should text channel be created and linked with voice channel?", required: true, choices: [["yes", "yes"], ["no", "no"]]}}
+		{"StringChoices": {name: "text_channel", description: "Should text channel be created and linked with voice channel?", required: true, choices: [["yes", "yes"], ["no", "no"]]}},
 	//INFORMATIONS! You can add Options, but mind that the NAME MUST BE LOWERCASED! AND NO SPACES!!!, for the CHOCIES you need to add a array of arrays; [ ["",""] , ["",""] ] 
 		//{"Integer": { name: "ping_amount", description: "How many times do you want to ping?", required: true }}, //to use in the code: interacton.getInteger("ping_amount")
 		//{"String": { name: "ping_amount", description: "How many times do you want to ping?", required: true }}, //to use in the code: interacton.getString("ping_amount")
@@ -60,7 +60,49 @@ module.exports = {
 			})
 		}
 
-		if(guild.me.permissions.has("MANAGE_CHANNELS")){
+		function checkPermissions(){
+			let noperms = new MessageEmbed()
+			.setTitle(`INSUFFICIENT PERMISSIONS!`)
+			.setFooter({text: emb.footertext, iconURL: client.user.displayAvatarURL()});
+			if(!guild.me.permissions.has("MANAGE_CHANNELS")){
+				noperms.setDescription(`I'm missing \`MANAGE_CHANNELS\` permission from the server!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel).has(`MANAGE_CHANNELS`)){
+				noperms.setDescription(`I'm missing \`MANAGE_CHANNELS\` permission from the channel ${interaction.channel}!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel.parent).has(`MANAGE_CHANNELS`)){
+				noperms.setDescription(`I'm missing \`MANAGE_CHANNELS\` permission from the category \`${interaction.channel.parent}\`!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel).has(`VIEW_CHANNEL`)){
+				noperms.setDescription(`I'm missing \`VIEW_CHANNEL\` permission from the channel ${interaction.channel}!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel.parent).has(`VIEW_CHANNEL`)){
+				noperms.setDescription(`I'm missing \`VIEW_CHANNEL\` permission from the category \`${interaction.channel.parent}\`!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel).has(`SEND_MESSAGES`)){
+				noperms.setDescription(`I'm missing \`SEND_MESSAGES\` permission from the channel ${interaction.channel}!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else if(!guild.me.permissionsIn(interaction.channel.parent).has(`SEND_MESSAGES`)){
+				noperms.setDescription(`I'm missing \`SEND_MESSAGES\` permission from the category \`${interaction.channel.parent}\`!`);
+				interaction.reply({embeds: [noperms], ephemeral: true});
+				return false;
+			}
+			else return true;
+		}
+
+		if(checkPermissions()){
 			con.query(`SELECT * FROM seraphine_guilds WHERE guild='${guild.id}'`, function(err, res){
 				if(res.length === 0){
 					premiumCheck()
@@ -69,7 +111,7 @@ module.exports = {
 						parent: interaction.channel.parent
 					}).then(ch => {
 						logchannel = ch.id;
-						con.query(`INSERT INTO seraphine_guilds VALUES ('${guild.id}', '${ch.id}')`)
+						con.query(`INSERT INTO seraphine_guilds (guild, logchannel) VALUES ('${guild.id}', '${ch.id}')`)
 						const dbupdate = new MessageEmbed()
 						.setTitle(`SERAPHINE GUILD UPDATE`)
 						.setThumbnail(guild.iconURL())
@@ -79,7 +121,6 @@ module.exports = {
 							{name: `CHANNEL`, value: `${ch.name}\n\`${ch.id}\``}
 						);
 						client.channels.cache.get(IC.database).send({embeds: [dbupdate]});
-						createChannels();
 					})
 				} else {
 					logchannel = res[0].logchannel;
@@ -92,7 +133,13 @@ module.exports = {
 		function createChannels(){
 			guild.channels.create('Join To Create Channel', {
 				type: 'GUILD_VOICE',
-				parent: interaction.channel.parent
+				parent: interaction.channel.parent,
+				permissionOverwrites: [
+					{
+						id: client.user.id,
+						allow: [Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.MANAGE_CHANNELS]
+					}
+				]
 			}).then(vch => {
 				con.query(`INSERT INTO seraphine_hub_channels (guild, channel, name, userlimit, text) VALUES ('${guild.id}', '${vch.id}', "${channelName}", '${channelLimit}', '${textChannel}')`, function (insertErr, insertRes, fields){
 					const hubcreated = new MessageEmbed()
@@ -101,9 +148,10 @@ module.exports = {
 					.setThumbnail(member.displayAvatarURL())
 					.addFields(
 						{name: `Created by`, value: `${member}\n\`${member.id}\``},
-						{name: `Channel`, value: `${vch}`, inline:true},
+						{name: `Channel`, value: `${vch}\n\`${vch.id}\``, inline:true},
 						{name: `User limit`, value: `${channelLimit}`, inline: true},
-						{name: `Text channel`, value: `${options.getString("text_channel").toUpperCase()}`, inline:true}
+						{name: `Text channel`, value: `${options.getString("text_channel").toUpperCase()}`, inline:true},
+						{name: `User permissions`, value: `${options.getString("text_channel").toUpperCase()}`, inline:true}
 					)
 					.setFooter({text: `HUB ID: ${insertRes.insertId}`, iconURL: client.user.displayAvatarURL()})
 					try {
@@ -112,7 +160,13 @@ module.exports = {
 						} else {
 							guild.channels.create('voicelog', {
 								type: 'GUILD_TEXT',
-								parent: interaction.channel.parent
+								parent: interaction.channel.parent,
+								permissionOverwrites: [
+									{
+										id: client.user.id,
+										allow: [Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.SEND_MESSAGES]
+									}
+								]
 							}).then(newch => {
 								newch.send({embeds: [hubcreated]});
 								con.query(`UPDATE seraphine_guilds SET logchannel='${newch.id}'`)
