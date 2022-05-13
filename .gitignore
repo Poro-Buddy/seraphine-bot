@@ -105,4 +105,4 @@ dist
 
 # Database stuff
 db.js
-config.json
+botconfig/config.json
